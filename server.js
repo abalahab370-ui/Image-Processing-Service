@@ -15,7 +15,7 @@ const cookieParser = require("cookie-parser") ;
 const mongoose  = require("mongoose") ;
 const connectDB = require("./config/dbconnect") ;
 const verfieJWT = require("./Controllers/verfieJWT") ; 
-
+const rateLimiter = require("./Controllers/rateLimiter.Js")
 
 //Connecting to The DataBase : 
 connectDB() ;
@@ -38,7 +38,7 @@ app.use( (req ,res,next) => {
       next();
 })
 
-
+app.use(rateLimiter) ;
 
 app.use('/api' , require("./routing/login") ) ;
 
