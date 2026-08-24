@@ -2,7 +2,6 @@ const cors = require("cors") ;
 
 //Cross Origin Resource Sharing :
 const whitelist = [
-      'https://blogger-project-n6s6.onrender.com',
       'http://127.0.0.1:5500'
 ];
 
