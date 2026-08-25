@@ -15,7 +15,7 @@ const cookieParser = require("cookie-parser") ;
 const mongoose  = require("mongoose") ;
 const connectDB = require("./config/dbconnect") ;
 const verfieJWT = require("./Controllers/verfieJWT") ; 
-const rateLimiter = require("./Controllers/rateLimiter.Js")
+const rateLimiter = require("./Controllers/rateLimiter.Js") ;
 
 //Connecting to The DataBase : 
 connectDB() ;
@@ -23,20 +23,20 @@ connectDB() ;
 //Starting with building schema of the project  : 
 //1- Staring with puting same Neccesary middleware !
 
-app.use(express.urlencoded({extended : false}));
-app.use(express.static(path.join(__dirname , "Public"))); // Coming Back to it Later !
-app.use(express.json());
+app.use(express.urlencoded({extended : false})) ;
+app.use(express.static(path.join(__dirname , "Public"))) ; // Coming Back to it Later !
+app.use(express.json()) ;
 
 //middleware for cookies :
 app.use(cookieParser()) ;
 
-app.use(cors(corsOptions));
+app.use(cors(corsOptions)) ;
 
 //Custom Middleware To log each req coming to the Server :
 app.use( (req ,res,next) => {
       console.log(`${req.method} ${req.path} ${req.headers.origin}`);
       next();
-})
+}) ;
 
 app.use(rateLimiter) ;
 
@@ -44,13 +44,14 @@ app.use('/api' , require("./routing/login") ) ;
 
 app.use('/api/regist' , require("./routing/regist") ) ;
 
-app.use( '/api/refresh' , require("./routing/refresh"))
+app.use( '/api/refresh' , require("./routing/refresh")) ;
 
-app.use( '/api/logout' , require("./routing/logout"));
+app.use( '/api/logout' , require("./routing/logout")) ;
 
 //time for verfieJWT =-= !(refresh and verfie u will burnout ah coding life =*=)
-app.use(verfieJWT);
+app.use(verfieJWT) ;
 
+app.use('/api/image' , require(""))
 
 
 mongoose.connection.once("open" , () => {
@@ -62,4 +63,4 @@ mongoose.connection.once("open" , () => {
             }
       );
 
-})
+}) ;
