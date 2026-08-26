@@ -15,7 +15,7 @@ const verfieJWT =  (req , res , next ) => {
                         return res.sendStatus(403) ; //forbidden cuz invalide token
                   }
                   req.user = decoded.userInfo.username ; //So important !!!
-                  req.roles = decoded.userInfo.roles ;
+                  req.userId = decoded.userInfo.userId ;
                   next();
             } 
 

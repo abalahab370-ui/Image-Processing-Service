@@ -1,26 +1,120 @@
-// Global State
+// Configuration Endpoints
+const AUTH_URL = '/api';
+const IMAGES_URL = '/api/images';
+
+// Application State
+let accessToken = null;
+let currentUser = null;
 let currentImageId = null;
 let currentOriginalSize = 0;
 let currentPage = 1;
 const LIMIT = 6;
 
 /**
- * Main Initializer called by index.html
+ * Decodes Base64URL JWT payload in memory
  */
-function initWorkspacePage() {
-    setupUploadHandlers();
-    setupTransformationHandlers();
-    setupGalleryHandlers();
+function parseJwt(token) {
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        return JSON.parse(window.atob(base64));
+    } catch (err) {
+        return null;
+    }
+}
+
+/**
+ * Main Initializer called by index.html (<script>initWorkspace();</script>)
+ */
+async function initWorkspace() {
+    const token = await refreshSession();
+    if (!token) return;
+
+    updateHeaderUI();
+    setupEventListeners();
     loadGalleryPage(currentPage);
 }
 
 /**
- * 1. File Selection & Drag-and-Drop Handler
+ * Obtains a fresh access token using the HttpOnly refresh token cookie
  */
-function setupUploadHandlers() {
+async function refreshSession() {
+    try {
+        const res = await fetch(`${AUTH_URL}/refresh`, {
+            method: 'GET',
+            credentials: 'include'
+        });
+
+        if (!res.ok) throw new Error('Session invalid or expired');
+
+        const data = await res.json();
+        accessToken = data.accessToken;
+
+        const payload = parseJwt(accessToken);
+        currentUser = {
+            username: payload?.userInfo?.username || payload?.username || 'Developer'
+        };
+
+        return accessToken;
+    } catch (err) {
+        console.warn('Session check error:', err.message);
+        accessToken = null;
+        currentUser = null;
+        window.location.href = '/login.html';
+        return null;
+    }
+}
+
+/**
+ * Helper wrapper for authenticated requests with automatic token refresh on 401
+ */
+async function fetchWithAuth(url, options = {}) {
+    options.headers = options.headers || {};
+    if (accessToken) {
+        options.headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+    options.credentials = 'include';
+
+    let res = await fetch(url, options);
+
+    // If access token expired during session, attempt silent refresh once
+    if (res.status === 401) {
+        const newToken = await refreshSession();
+        if (newToken) {
+            options.headers['Authorization'] = `Bearer ${newToken}`;
+            res = await fetch(url, options);
+        }
+    }
+
+    return res;
+}
+
+/**
+ * Updates Header User Info
+ */
+function updateHeaderUI() {
+    const usernameDisplay = document.getElementById('usernameDisplay');
+    if (usernameDisplay && currentUser) {
+        usernameDisplay.textContent = currentUser.username;
+    }
+}
+
+/**
+ * Attach Event Listeners
+ */
+function setupEventListeners() {
     const dropZone = document.getElementById('dropZone');
     const imageInput = document.getElementById('imageInput');
+    const processBtn = document.getElementById('processBtn');
+    const qualityRange = document.getElementById('qualityRange');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const prevPageBtn = document.getElementById('prevPageBtn');
+    const nextPageBtn = document.getElementById('nextPageBtn');
 
+    // Logout
+    logoutBtn?.addEventListener('click', handleLogout);
+
+    // File selection
     dropZone?.addEventListener('click', () => imageInput.click());
 
     ['dragover', 'dragenter'].forEach(evt => {
@@ -39,43 +133,67 @@ function setupUploadHandlers() {
 
     dropZone?.addEventListener('drop', (e) => {
         const files = e.dataTransfer.files;
-        if (files.length > 0) uploadRawImage(files[0]);
+        if (files.length > 0) handleUploadImage(files[0]);
     });
 
     imageInput?.addEventListener('change', (e) => {
-        if (e.target.files.length > 0) uploadRawImage(e.target.files[0]);
+        if (e.target.files.length > 0) handleUploadImage(e.target.files[0]);
+    });
+
+    // Transformations
+    qualityRange?.addEventListener('input', (e) => {
+        const qualityVal = document.getElementById('qualityVal');
+        if (qualityVal) qualityVal.textContent = `${e.target.value}%`;
+    });
+
+    processBtn?.addEventListener('click', handleApplyTransformations);
+
+    // Pagination
+    prevPageBtn?.addEventListener('click', () => {
+        if (currentPage > 1) loadGalleryPage(--currentPage);
+    });
+
+    nextPageBtn?.addEventListener('click', () => {
+        loadGalleryPage(++currentPage);
     });
 }
 
 /**
- * Uploads raw image to POST /api/images via Multipart FormData
+ * Upload Raw Image (POST /api/images)
  */
-async function uploadRawImage(file) {
+async function handleUploadImage(file) {
     const statusTag = document.getElementById('statusTag');
     statusTag.textContent = 'Uploading...';
     statusTag.className = 'text-[11px] font-semibold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full';
+
+    // Immediate local preview
+    const tempUrl = URL.createObjectURL(file);
+    renderPreview(tempUrl);
+    updateMetrics(file.size, null);
 
     const formData = new FormData();
     formData.append('image', file);
 
     try {
-        const res = await fetch('/api/images', {
+        const res = await fetchWithAuth(IMAGES_URL, {
             method: 'POST',
-            body: formData // Browser automatically sets multipart/form-data header
+            body: formData
         });
 
-        if (!res.ok) throw new Error('Failed to upload image');
-        const data = await res.json();
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.message || `Upload failed (Status ${res.status})`);
+        }
 
+        const data = await res.json();
         currentImageId = data.id || data._id;
         currentOriginalSize = file.size;
 
-        renderPreview(data.url || `/api/images/${currentImageId}`);
-        updateMetrics(file.size, null);
+        renderPreview(data.url || `${IMAGES_URL}/${currentImageId}`);
 
         statusTag.textContent = 'Image Ready';
         statusTag.className = 'text-[11px] font-semibold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full';
-        
+
         loadGalleryPage(1);
     } catch (err) {
         alert(err.message);
@@ -85,60 +203,44 @@ async function uploadRawImage(file) {
 }
 
 /**
- * 2. Transformation Payload Generator
+ * Apply Transformations (POST /api/images/:id/transform)
  */
-function setupTransformationHandlers() {
-    const qualityRange = document.getElementById('qualityRange');
-    const qualityVal = document.getElementById('qualityVal');
-    const processBtn = document.getElementById('processBtn');
+async function handleApplyTransformations() {
+    if (!currentImageId) {
+        alert('Please upload an image first.');
+        return;
+    }
 
-    qualityRange?.addEventListener('input', (e) => {
-        qualityVal.textContent = `${e.target.value}%`;
-    });
-
-    processBtn?.addEventListener('click', async () => {
-        if (!currentImageId) {
-            alert('Please upload an image first.');
-            return;
-        }
-
-        const width = parseInt(document.getElementById('imgWidth').value) || undefined;
-        const height = parseInt(document.getElementById('imgHeight').value) || undefined;
-
-        const payload = {
-            transformations: {
-                resize: (width || height) ? { width, height } : undefined,
-                rotate: parseInt(document.getElementById('rotateSelect').value) || 0,
-                format: document.getElementById('formatSelect').value,
-                quality: parseInt(qualityRange.value),
-                filters: {
-                    grayscale: document.getElementById('filterGrayscale').checked,
-                    sepia: document.getElementById('filterSepia').checked
-                }
-            }
-        };
-
-        await applyTransformations(payload);
-    });
-}
-
-/**
- * Sends transformation configuration to POST /api/images/:id/transform
- */
-async function applyTransformations(payload) {
     const statusTag = document.getElementById('statusTag');
     statusTag.textContent = 'Processing...';
 
+    const width = parseInt(document.getElementById('imgWidth').value) || undefined;
+    const height = parseInt(document.getElementById('imgHeight').value) || undefined;
+    const qualityRange = document.getElementById('qualityRange');
+
+    const payload = {
+        transformations: {
+            resize: (width || height) ? { width, height } : undefined,
+            rotate: parseInt(document.getElementById('rotateSelect').value) || 0,
+            format: document.getElementById('formatSelect').value,
+            quality: parseInt(qualityRange.value),
+            filters: {
+                grayscale: document.getElementById('filterGrayscale').checked,
+                sepia: document.getElementById('filterSepia').checked
+            }
+        }
+    };
+
     try {
-        const res = await fetch(`/api/images/${currentImageId}/transform`, {
+        const res = await fetchWithAuth(`${IMAGES_URL}/${currentImageId}/transform`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
 
         if (!res.ok) throw new Error('Transformation failed');
-        const data = await res.json();
 
+        const data = await res.json();
         renderPreview(data.url);
         updateMetrics(currentOriginalSize, data.size);
 
@@ -151,72 +253,26 @@ async function applyTransformations(payload) {
 }
 
 /**
- * 3. Render Helpers & Metrics Calculation
+ * Fetches and Renders Paginated Image Assets (GET /api/images)
  */
-function renderPreview(url) {
-    const placeholder = document.getElementById('previewPlaceholder');
-    const img = document.getElementById('previewImage');
-    
-    placeholder.classList.add('hidden');
-    img.src = url;
-    img.classList.remove('hidden');
-}
-
-function updateMetrics(origSize, newSize) {
-    document.getElementById('originalSizeText').textContent = formatBytes(origSize);
-    
-    if (newSize) {
-        document.getElementById('convertedSizeText').textContent = formatBytes(newSize);
-        const ratio = Math.round(((origSize - newSize) / origSize) * 100);
-        document.getElementById('savingsText').textContent = ratio > 0 ? `-${ratio}%` : `${ratio}%`;
-    } else {
-        document.getElementById('convertedSizeText').textContent = '--';
-        document.getElementById('savingsText').textContent = '--';
-    }
-}
-
-function enableDownload(url) {
-    const downloadBtn = document.getElementById('downloadBtn');
-    downloadBtn.disabled = false;
-    downloadBtn.className = 'mt-4 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-md';
-    downloadBtn.onclick = () => window.open(url, '_blank');
-}
-
-function formatBytes(bytes) {
-    if (!bytes) return '--';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-}
-
-/**
- * 4. Paginated Asset Gallery Logic
- */
-function setupGalleryHandlers() {
-    document.getElementById('prevPageBtn')?.addEventListener('click', () => {
-        if (currentPage > 1) loadGalleryPage(--currentPage);
-    });
-    document.getElementById('nextPageBtn')?.addEventListener('click', () => {
-        loadGalleryPage(++currentPage);
-    });
-}
-
 async function loadGalleryPage(page) {
     try {
-        const res = await fetch(`/api/images?page=${page}&limit=${LIMIT}`);
+        const res = await fetchWithAuth(`${IMAGES_URL}?page=${page}&limit=${LIMIT}`);
         if (!res.ok) return;
+
         const data = await res.json();
-
         const grid = document.getElementById('assetsGrid');
-        grid.innerHTML = '';
+        if (!grid) return;
 
-        if (!data.images || data.images.length === 0) {
-            grid.innerHTML = `<div class="p-8 border border-dashed border-slate-200 rounded-xl text-center text-slate-400 text-xs col-span-full">No assets found on this page.</div>`;
+        grid.innerHTML = '';
+        const imageList = Array.isArray(data) ? data : (data.images || []);
+
+        if (imageList.length === 0) {
+            grid.innerHTML = `<div class="p-8 border border-dashed border-slate-200 rounded-xl text-center text-slate-400 text-xs col-span-full">No assets found.</div>`;
             return;
         }
 
-        data.images.forEach(img => {
+        imageList.forEach(img => {
             const card = document.createElement('div');
             card.className = 'bg-slate-50 border border-slate-200 rounded-xl p-2 group hover:border-emerald-300 transition-all cursor-pointer';
             card.innerHTML = `
@@ -237,8 +293,74 @@ async function loadGalleryPage(page) {
 
         document.getElementById('pageIndicator').textContent = `Page ${page}`;
         document.getElementById('prevPageBtn').disabled = page === 1;
-        document.getElementById('nextPageBtn').disabled = data.images.length < LIMIT;
+        document.getElementById('nextPageBtn').disabled = imageList.length < LIMIT;
     } catch (err) {
-        console.error('Gallery loading failed', err);
+        console.error('Gallery error:', err);
     }
+}
+
+/**
+ * Logout Handler (DELETE /api/logout)
+ */
+async function handleLogout() {
+    try {
+        await fetch(`${AUTH_URL}/logout`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+    } catch (err) {
+        console.error('Logout failed:', err);
+    } finally {
+        accessToken = null;
+        currentUser = null;
+        window.location.href = '/login.html';
+    }
+}
+
+/**
+ * Render Helpers
+ */
+function renderPreview(url) {
+    const placeholder = document.getElementById('previewPlaceholder');
+    const img = document.getElementById('previewImage');
+    if (placeholder && img) {
+        placeholder.classList.add('hidden');
+        img.src = url;
+        img.classList.remove('hidden');
+    }
+}
+
+function updateMetrics(origSize, newSize) {
+    const origText = document.getElementById('originalSizeText');
+    const convText = document.getElementById('convertedSizeText');
+    const savText = document.getElementById('savingsText');
+
+    if (origText) origText.textContent = formatBytes(origSize);
+    if (convText) {
+        if (newSize) {
+            convText.textContent = formatBytes(newSize);
+            const ratio = Math.round(((origSize - newSize) / origSize) * 100);
+            if (savText) savText.textContent = ratio > 0 ? `-${ratio}%` : `${ratio}%`;
+        } else {
+            convText.textContent = '--';
+            if (savText) savText.textContent = '--';
+        }
+    }
+}
+
+function enableDownload(url) {
+    const downloadBtn = document.getElementById('downloadBtn');
+    if (downloadBtn) {
+        downloadBtn.disabled = false;
+        downloadBtn.className = 'mt-4 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-md';
+        downloadBtn.onclick = () => window.open(url, '_blank');
+    }
+}
+
+function formatBytes(bytes) {
+    if (!bytes) return '--';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
