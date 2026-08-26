@@ -1,6 +1,6 @@
 const cloudinary = require('cloudinary').v2;
+const Image = require('../Data/image');
 
-// Configure Cloudinary with your .env credentials
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
@@ -13,19 +13,17 @@ const uploadController = async (req, res) => {
             return res.status(400).json({ message: 'No image file uploaded.' });
         }
 
-        // 1. Grab options from request body (or use defaults)
         const targetFormat = req.body.format || 'webp';
         const targetWidth = req.body.width ? parseInt(req.body.width) : 800;
 
-        // 2. Stream RAM buffer to Cloudinary with transformations built-in
         const uploadResult = await new Promise((resolve, reject) => {
             const stream = cloudinary.uploader.upload_stream(
                 {
                     folder: 'devspace_uploads',
                     width: targetWidth,
-                    crop: 'limit',              // Resizes proportionately without stretching
-                    format: targetFormat,        // Auto-converts to webp, png, etc.
-                    quality: 'auto'              // Smart compression handled by Cloudinary
+                    crop: 'limit',
+                    format: targetFormat,
+                    quality: 'auto'
                 },
                 (error, result) => {
                     if (error) return reject(error);
@@ -33,13 +31,30 @@ const uploadController = async (req, res) => {
                 }
             );
             
-            // Send the raw Multer buffer
             stream.end(req.file.buffer);
         });
 
-        // 3. Return the transformed Cloudinary URL to the frontend
-        return res.status(200).json({
+        // Inside uploadController.js:
+        const userId = req.userId || req.user?.id || req.user?._id;
+
+        if (!userId) {
+            return res.status(401).json({ message: 'Unauthorized: User ID missing from token' });
+        }
+
+        // Save metadata to MongoDB using your req.userId
+        const newImage = await Image.create({
+            userId: userId,
+            filename: req.file.originalname,
             url: uploadResult.secure_url,
+            publicId: uploadResult.public_id,
+            size: uploadResult.bytes,
+            format: uploadResult.format
+        });
+
+        return res.status(200).json({
+            id: newImage._id,
+            filename: newImage.filename,
+            url: newImage.url,
             originalSize: req.file.size,
             processedSize: uploadResult.bytes,
             format: uploadResult.format
