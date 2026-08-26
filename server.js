@@ -38,21 +38,22 @@ app.use( (req ,res,next) => {
       next();
 }) ;
 
-app.use(rateLimiter) ;
+app.use('/api' , rateLimiter ,require("./routing/login") ) ;
 
-app.use('/api' , require("./routing/login") ) ;
+app.use('/api/regist' , rateLimiter ,require("./routing/regist") ) ;
 
-app.use('/api/regist' , require("./routing/regist") ) ;
+app.use( '/api/refresh' , rateLimiter ,require("./routing/refresh")) ;
 
-app.use( '/api/refresh' , require("./routing/refresh")) ;
-
-app.use( '/api/logout' , require("./routing/logout")) ;
+app.use( '/api/logout' , rateLimiter ,require("./routing/logout")) ;
 
 //time for verfieJWT =-= !(refresh and verfie u will burnout ah coding life =*=)
 app.use(verfieJWT) ;
 
-app.use('/api/image' , require(""))
+app.use('/api/images' , rateLimiter , require("./routing/images")) ;
 
+app.use( (req , res) => {
+      return res.status(404).sendFile(path.join(__dirname , "Public" , "404.html")) ;
+})
 
 mongoose.connection.once("open" , () => {
 

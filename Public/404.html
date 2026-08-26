@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DevSpace // Page Not Found</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    </style>
+</head>
+<body class="bg-[#F4F7F4] text-slate-800 min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+
+    <!-- Ambient Background Glows -->
+    <div class="absolute -top-32 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none"></div>
+    <div class="absolute -bottom-32 left-1/2 -translate-x-1/2 w-[400px] h-[250px] bg-teal-500/10 blur-[100px] rounded-full pointer-events-none"></div>
+
+    <!-- Main 404 Card -->
+    <div class="w-full max-w-md bg-white border border-emerald-950/10 rounded-2xl shadow-xl shadow-emerald-950/5 p-8 sm:p-9 relative z-10 text-center">
+        
+        <!-- Friendly Mode Pill Badge -->
+        <div class="mb-4 flex justify-center">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase bg-emerald-100/80 text-emerald-800 border border-emerald-200/60">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping"></span>
+                <span>Error 404</span>
+            </span>
+        </div>
+
+        <!-- Stylized 404 Display -->
+        <div class="my-3 relative flex items-center justify-center">
+            <span class="text-7xl sm:text-8xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-800 select-none tracking-tight">
+                404
+            </span>
+        </div>
+
+        <!-- Conversational Header -->
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900 leading-tight">Lost in the workspace?</h1>
+            <p class="text-xs text-slate-500 mt-2 leading-relaxed">
+                The page you're looking for was moved, deleted, or took an unexpected detour.
+            </p>
+        </div>
+
+        <!-- Quick Search Option -->
+        <div class="mb-6">
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+                <input 
+                    type="text" 
+                    id="searchQuery" 
+                    placeholder="Search DevSpace..."
+                    class="w-full bg-slate-50/80 border border-slate-200 rounded-xl pl-10 pr-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/15 focus:outline-none transition-all duration-150"
+                >
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="space-y-2.5">
+            <a 
+                href="/" 
+                class="w-full bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-semibold py-3 px-4 rounded-xl text-sm transition-all duration-150 shadow-md shadow-emerald-700/20 active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+            >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+                <span>Take Me Home</span>
+            </a>
+
+            <button 
+                type="button" 
+                onclick="window.history.back()" 
+                class="w-full bg-slate-50/80 hover:bg-slate-100 border border-slate-200/80 text-slate-700 font-semibold py-2.5 px-4 rounded-xl text-xs transition-all duration-150 cursor-pointer flex items-center justify-center gap-2"
+            >
+                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                <span>Go Back Previous Page</span>
+            </button>
+        </div>
+
+        <!-- Conversational Footer Switcher -->
+        <div class="mt-8 pt-5 border-t border-slate-100 text-center">
+            <p class="text-xs text-slate-500 leading-relaxed">
+                Think something is broken?
+                <a href="#" class="text-emerald-700 hover:text-emerald-800 font-bold ml-1 cursor-pointer transition-colors underline underline-offset-2">
+                    Report a issue
+                </a>
+            </p>
+        </div>
+
+    </div>
+
+</body>
+</html>
