@@ -29,7 +29,8 @@ const loginHandler = async (req , res) => {
                   const accessToken = jwt.sign(
                   {"userInfo" : {
                          username : founduser.username ,
-                          roles :  roles // will help us in specifying the req !
+                         roles: roles,
+                         userId : founduser._id.toString()
                   }} ,
                           process.env.ACCESS_TOKEN_SECRET ,
                           { expiresIn : '2h'}
