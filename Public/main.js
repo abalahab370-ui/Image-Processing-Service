@@ -274,22 +274,40 @@ async function loadGalleryPage(page) {
             return;
         }
 
+        // Inside loadGalleryPage(page) loop inside main.js:
         imageList.forEach(img => {
             const card = document.createElement('div');
-            card.className = 'bg-slate-50 border border-slate-200 rounded-xl p-2 group hover:border-emerald-300 transition-all cursor-pointer';
+            card.className = 'bg-slate-50 border border-slate-200 rounded-xl p-2 group hover:border-emerald-300 transition-all cursor-pointer relative';
+            
+            const imgId = img.id || img._id;
+
             card.innerHTML = `
-                <div class="h-24 rounded-lg bg-slate-100 overflow-hidden flex items-center justify-center mb-2">
+                <div class="h-24 rounded-lg bg-slate-100 overflow-hidden flex items-center justify-center mb-2 relative">
                     <img src="${img.url}" class="object-cover h-full w-full">
+                    
+                    <!-- DELETE BUTTON -->
+                    <button class="delete-btn absolute top-1 right-1 bg-red-500/80 hover:bg-red-600 text-white p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity" title="Delete Asset">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
                 </div>
                 <p class="text-[10px] font-bold text-slate-700 truncate">${img.filename || 'Image Asset'}</p>
                 <p class="text-[9px] text-slate-400">${formatBytes(img.size)}</p>
             `;
+
+            // Attach click listener for selecting the card
             card.onclick = () => {
-                currentImageId = img.id || img._id;
+                currentImageId = imgId;
                 currentOriginalSize = img.size;
                 renderPreview(img.url);
                 updateMetrics(img.size, null);
             };
+
+            // Attach click listener specifically for delete button
+            const deleteBtn = card.querySelector('.delete-btn');
+            deleteBtn.onclick = (e) => handleDeleteImage(imgId, e);
+
             grid.appendChild(card);
         });
 
@@ -392,5 +410,36 @@ async function calculateTotalAccountStorage() {
         }
     } catch (err) {
         console.error('Error calculating storage:', err);
+    }
+}
+/**
+ * Deletes an image asset (DELETE /api/images/:id)
+ */
+async function handleDeleteImage(id, event) {
+    // Prevent clicking the delete button from opening the image preview
+    event.stopPropagation();
+
+    if (!confirm('Are you sure you want to delete this asset?')) return;
+
+    try {
+        const res = await fetchWithAuth(`${IMAGES_URL}/${id}`, {
+            method: 'DELETE'
+        });
+
+        if (!res.ok) throw new Error('Failed to delete image');
+
+        // Clear preview if deleted image is currently loaded in workspace
+        if (currentImageId === id) {
+            currentImageId = null;
+            document.getElementById('previewImage').classList.add('hidden');
+            document.getElementById('previewPlaceholder').classList.remove('hidden');
+            updateMetrics(0, null);
+        }
+
+        // Refresh UI
+        loadGalleryPage(currentPage);
+        calculateTotalAccountStorage();
+    } catch (err) {
+        alert(err.message);
     }
 }
