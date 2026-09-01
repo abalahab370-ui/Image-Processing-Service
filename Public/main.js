@@ -33,6 +33,7 @@ async function initWorkspace() {
     updateHeaderUI();
     setupEventListeners();
     loadGalleryPage(currentPage);
+    calculateTotalAccountStorage();
 }
 
 /**
@@ -195,6 +196,7 @@ async function handleUploadImage(file) {
         statusTag.className = 'text-[11px] font-semibold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full';
 
         loadGalleryPage(1);
+        calculateTotalAccountStorage();
     } catch (err) {
         alert(err.message);
         statusTag.textContent = 'Upload Failed';
@@ -363,4 +365,32 @@ function formatBytes(bytes) {
     const sizes = ['B', 'KB', 'MB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+/**
+ * Calculates total storage across ALL account images
+ */
+async function calculateTotalAccountStorage() {
+    try {
+        // Fetch ALL user images by calling IMAGES_URL without ?page or ?limit
+        const res = await fetchWithAuth(IMAGES_URL);
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const allImages = Array.isArray(data) ? data : (data.images || []);
+
+        // Sum up sizes using a basic loop
+        let totalBytes = 0;
+        for (let i = 0; i < allImages.length; i++) {
+            totalBytes += allImages[i].size || 0;
+        }
+
+        // Update UI display
+        const storageDisplay = document.getElementById('totalStorageDisplay');
+        if (storageDisplay) {
+            storageDisplay.textContent = formatBytes(totalBytes);
+        }
+    } catch (err) {
+        console.error('Error calculating storage:', err);
+    }
 }
