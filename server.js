@@ -38,6 +38,11 @@ app.use( (req ,res,next) => {
       next();
 }) ;
 
+app.get("/ping", rateLimiter , (req, res) => {
+  return res.status(200).send("OK");
+});
+
+
 app.use('/api' , rateLimiter ,require("./routing/login") ) ;
 
 app.use('/api/regist' , rateLimiter ,require("./routing/regist") ) ;
@@ -50,10 +55,6 @@ app.use( '/api/logout' , rateLimiter ,require("./routing/logout")) ;
 app.use(verfieJWT) ;
 
 app.use('/api/images' , rateLimiter , require("./routing/images")) ;
-
-app.get("/ping", rateLimiter , (req, res) => {
-  return res.status(200).send("OK");
-});
 
 
 app.use( (req , res) => {
