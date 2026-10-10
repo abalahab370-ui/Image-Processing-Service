@@ -51,6 +51,11 @@ app.use(verfieJWT) ;
 
 app.use('/api/images' , rateLimiter , require("./routing/images")) ;
 
+app.get("/ping", rateLimiter , (req, res) => {
+  return res.status(200).send("OK");
+});
+
+
 app.use( (req , res) => {
       return res.status(404).sendFile(path.join(__dirname , "Public" , "404.html")) ;
 })
